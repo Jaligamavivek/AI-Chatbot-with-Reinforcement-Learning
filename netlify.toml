@@ -1,5 +1,5 @@
 [build]
-  command = "pip install --upgrade pip setuptools wheel && pip install -r requirements.txt"
+  command = "pip install --upgrade pip setuptools wheel && pip install -r requirements-netlify.txt"
   publish = "static"
 
 [build.environment]
