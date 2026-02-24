@@ -1,0 +1,11 @@
+[build]
+  command = "pip install --upgrade pip setuptools wheel && pip install -r requirements.txt && python init_db.py"
+  publish = "static"
+
+[[redirects]]
+  from = "/*"
+  to = "/.netlify/functions/app"
+  status = 200
+
+[functions]
+  directory = "netlify/functions"
