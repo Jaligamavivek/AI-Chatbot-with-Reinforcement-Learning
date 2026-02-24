@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Assistant Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="header-content">
+                <div class="logo-section">
+                    <div class="logo-icon">
+                        <i class="fas fa-robot"></i>
+                    </div>
+                    <div class="logo-text">
+                        <h1>AI Assistant</h1>
+                        <p>Welcome back, {{ user.username }}!</p>
+                    </div>
+                </div>
+                <div class="header-controls">
+                    <div class="user-menu">
+                        <button class="user-avatar" onclick="toggleUserMenu()">
+                            <i class="fas fa-user-circle"></i>
+                            <span>{{ user.username }}</span>
+                            <i class="fas fa-chevron-down"></i>
+                        </button>
+                        <div class="user-dropdown" id="userDropdown">
+                            <a href="#" onclick="showProfile()">
+                                <i class="fas fa-user"></i>
+                                Profile
+                            </a>
+                            <a href="#" onclick="showSettings()">
+                                <i class="fas fa-cog"></i>
+                                Settings
+                            </a>
+                            <div class="dropdown-divider"></div>
+                            <a href="#" onclick="logout()">
+                                <i class="fas fa-sign-out-alt"></i>
+                                Logout
+                            </a>
+                        </div>
+                    </div>
+                    <button id="reset-session" class="btn btn-outline">
+                        <i class="fas fa-refresh"></i>
+                        New Session
+                    </button>
+                    <button id="show-stats" class="btn btn-primary">
+                        <i class="fas fa-chart-line"></i>
+                        Analytics
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <div class="main-layout">
+            <!-- Left Sidebar for Chat History -->
+            <div class="sidebar-left">
+                <div class="sidebar-header">
+                    <button id="new-chat-btn" class="new-chat-btn">
+                        <i class="fas fa-plus"></i>
+                        New Chat
+                    </button>
+                </div>
+                <div class="chat-history" id="chat-history">
+                    <div class="history-section">
+                        <div class="history-label">Today</div>
+                        <div class="history-item active">
+                            <i class="fas fa-message"></i>
+                            <span>Current Conversation</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="sidebar-footer">
+                    <button class="sidebar-btn" onclick="showSettings()">
+                        <i class="fas fa-cog"></i>
+                        Settings
+                    </button>
+                </div>
+            </div>
+
+            <!-- Chat Section -->
+            <div class="chat-section">
+                <div id="chat-messages" class="chat-messages">
+                    <div class="welcome-message">
+                        <div class="welcome-icon">
+                            <i class="fas fa-robot"></i>
+                        </div>
+                        <h2>Welcome to AI Assistant</h2>
+                        <p>I'm powered by reinforcement learning and I improve with your feedback.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Input Fixed at Bottom of Viewport -->
+        <div class="chat-input-section">
+            <div class="input-container">
+                <div class="input-wrapper">
+                    <input type="text" id="user-input" placeholder="Message AI Assistant..." maxlength="500" autocomplete="off">
+                    <button id="voice-button" class="voice-btn" title="Speech to Text">
+                        <i class="fas fa-microphone"></i>
+                    </button>
+                    <button id="send-button" class="send-btn">
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Rating Modal -->
+    <div id="rating-modal" class="modal">
+        <div class="modal-backdrop"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Rate this response</h3>
+                <button class="modal-close" id="cancel-rating">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="rating-stars">
+                    <span class="star" data-rating="1"><i class="fas fa-star"></i></span>
+                    <span class="star" data-rating="2"><i class="fas fa-star"></i></span>
+                    <span class="star" data-rating="3"><i class="fas fa-star"></i></span>
+                    <span class="star" data-rating="4"><i class="fas fa-star"></i></span>
+                    <span class="star" data-rating="5"><i class="fas fa-star"></i></span>
+                </div>
+                <div class="rating-labels">
+                    <span>Poor</span>
+                    <span>Excellent</span>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="submit-rating" class="btn btn-primary">Submit Rating</button>
+                <button id="cancel-rating-btn" class="btn btn-outline">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Success Toast -->
+    <div id="toast-container"></div>
+
+    <script>
+        class AIAssistant {
+            constructor() {
+                this.currentConversationId = null;
+                this.currentRatingConversationId = null;
+                this.selectedRating = 0;
+                this.messageCount = 0;
+                this.isListening = false;
+                this.recognition = null;
+                this.initializeSpeechRecognition();
+                this.initializeEventListeners();
+                this.updateCharCount();
+            }
+
+            initializeSpeechRecognition() {
+                // Check if browser supports speech recognition
+                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                
+                if (SpeechRecognition) {
+                    this.recognition = new SpeechRecognition();
+                    this.recognition.continuous = false;
+                    this.recognition.interimResults = false;
+                    this.recognition.lang = 'en-US';
+
+                    this.recognition.onstart = () => {
+                        this.isListening = true;
+                        const voiceBtn = document.getElementById('voice-button');
+                        voiceBtn.classList.add('listening');
+                        this.showToast('Listening... Speak now', 'info');
+                    };
+
+                    this.recognition.onresult = (event) => {
+                        const transcript = event.results[0][0].transcript;
+                        document.getElementById('user-input').value = transcript;
+                        this.updateCharCount();
+                        this.showToast('Speech recognized!', 'success');
+                    };
+
+                    this.recognition.onerror = (event) => {
+                        console.error('Speech recognition error:', event.error);
+                        this.showToast('Speech recognition error: ' + event.error, 'error');
+                        this.stopListening();
+                    };
+
+                    this.recognition.onend = () => {
+                        this.stopListening();
+                    };
+                } else {
+                    console.warn('Speech recognition not supported in this browser');
+                }
+            }
+
+            startListening() {
+                if (this.recognition && !this.isListening) {
+                    try {
+                        this.recognition.start();
+                    } catch (error) {
+                        console.error('Error starting speech recognition:', error);
+                        this.showToast('Could not start speech recognition', 'error');
+                    }
+                }
+            }
+
+            stopListening() {
+                this.isListening = false;
+                const voiceBtn = document.getElementById('voice-button');
+                if (voiceBtn) {
+                    voiceBtn.classList.remove('listening');
+                }
+            }
+
+            toggleVoiceInput() {
+                if (this.isListening) {
+                    this.recognition.stop();
+                } else {
+                    this.startListening();
+                }
+            }
+
+            initializeEventListeners() {
+                // Send message
+                document.getElementById('send-button').addEventListener('click', () => this.sendMessage());
+                document.getElementById('user-input').addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        this.sendMessage();
+                    }
+                });
+
+                // Voice input
+                const voiceBtn = document.getElementById('voice-button');
+                if (voiceBtn) {
+                    voiceBtn.addEventListener('click', () => this.toggleVoiceInput());
+                }
+
+                // Character count
+                document.getElementById('user-input').addEventListener('input', () => this.updateCharCount());
+
+                // Session controls
+                document.getElementById('reset-session').addEventListener('click', () => this.resetSession());
+                document.getElementById('show-stats').addEventListener('click', () => this.showDetailedStats());
+                document.getElementById('new-chat-btn').addEventListener('click', () => this.resetSession());
+
+                // Rating modal
+                document.querySelectorAll('.star').forEach(star => {
+                    star.addEventListener('click', (e) => this.selectRating(e.currentTarget.dataset.rating));
+                    star.addEventListener('mouseenter', (e) => this.hoverRating(e.currentTarget.dataset.rating));
+                });
+                document.getElementById('rating-modal').addEventListener('mouseleave', () => this.resetHover());
+                document.getElementById('submit-rating').addEventListener('click', () => this.submitRating());
+                document.getElementById('cancel-rating').addEventListener('click', () => this.closeRatingModal());
+                document.getElementById('cancel-rating-btn').addEventListener('click', () => this.closeRatingModal());
+            }
+
+            updateCharCount() {
+                // Simplified - no char count display needed
+            }
+
+            async sendMessage() {
+                const input = document.getElementById('user-input');
+                const message = input.value.trim();
+                
+                if (!message) return;
+
+                // Disable input while processing
+                input.disabled = true;
+                document.getElementById('send-button').disabled = true;
+                document.getElementById('voice-button').disabled = true;
+
+                // Add user message to chat
+                this.addMessage(message, 'user');
+                input.value = '';
+                this.updateCharCount();
+
+                // Show typing indicator
+                this.showTypingIndicator();
+
+                try {
+                    const response = await fetch('/chat', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ message: message })
+                    });
+
+                    const data = await response.json();
+                    this.hideTypingIndicator();
+
+                    if (data.success) {
+                        this.addMessage(data.response, 'bot', data.conversation_id, data);
+                        this.updateStats(data.metadata);
+                        this.messageCount++;
+                        this.updateMessageCount();
+                    } else {
+                        this.addMessage('I apologize, but I encountered an error processing your request. Please try again.', 'bot');
+                    }
+                } catch (error) {
+                    this.hideTypingIndicator();
+                    this.addMessage('I\'m having trouble connecting right now. Please check your connection and try again.', 'bot');
+                } finally {
+                    // Re-enable input
+                    input.disabled = false;
+                    document.getElementById('send-button').disabled = false;
+                    document.getElementById('voice-button').disabled = false;
+                    input.focus();
+                }
+            }
+
+            addMessage(content, sender, conversationId = null, metadata = null) {
+                const messagesContainer = document.getElementById('chat-messages');
+                
+                // Remove welcome message on first real message
+                const welcomeMsg = messagesContainer.querySelector('.welcome-message');
+                if (welcomeMsg) {
+                    welcomeMsg.remove();
+                }
+                
+                const messageGroup = document.createElement('div');
+                messageGroup.className = `message-group ${sender}-group`;
+
+                const currentTime = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+
+                let messageHTML = `
+                    <div class="avatar ${sender}-avatar">
+                        ${sender === 'user' ? '<i class="fas fa-user"></i>' : '<i class="fas fa-robot"></i>'}
+                    </div>
+                    <div class="message-content">
+                        <div class="message-bubble ${sender}-bubble">
+                            <div class="message-text">${content}</div>
+                            <div class="message-time">${currentTime}</div>
+                `;
+
+                if (sender === 'bot' && conversationId) {
+                    messageHTML += `
+                            <div class="message-actions">
+                                <button class="action-btn like-btn" onclick="aiAssistant.sendFeedback(${conversationId}, 'like', null, event)" title="Like this response">
+                                    <i class="fas fa-thumbs-up"></i>
+                                </button>
+                                <button class="action-btn dislike-btn" onclick="aiAssistant.sendFeedback(${conversationId}, 'dislike', null, event)" title="Dislike this response">
+                                    <i class="fas fa-thumbs-down"></i>
+                                </button>
+                                <button class="action-btn rating-btn" onclick="aiAssistant.openRatingModal(${conversationId})" title="Rate this response">
+                                    <i class="fas fa-star"></i>
+                                </button>
+                            </div>
+                    `;
+
+                    if (metadata) {
+                        const confidencePercent = Math.round(metadata.confidence * 100);
+                        messageHTML += `
+                            <div class="message-metadata">
+                                <span class="intent-tag">${metadata.intent.replace('_', ' ')}</span>
+                                <span class="confidence-badge ${confidencePercent > 70 ? 'high' : confidencePercent > 40 ? 'medium' : 'low'}">
+                                    ${confidencePercent}% confidence
+                                </span>
+                            </div>
+                        `;
+                    }
+                }
+
+                messageHTML += `
+                        </div>
+                    </div>
+                `;
+
+                messageGroup.innerHTML = messageHTML;
+                messagesContainer.appendChild(messageGroup);
+                
+                // Smooth scroll to bottom
+                setTimeout(() => {
+                    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                }, 100);
+            }
+
+            showTypingIndicator() {
+                const messagesContainer = document.getElementById('chat-messages');
+                const typingGroup = document.createElement('div');
+                typingGroup.id = 'typing-indicator';
+                typingGroup.className = 'message-group bot-group typing';
+                typingGroup.innerHTML = `
+                    <div class="avatar bot-avatar">
+                        <i class="fas fa-robot"></i>
+                    </div>
+                    <div class="message-content">
+                        <div class="message-bubble bot-bubble">
+                            <div class="typing-animation">
+                                <span></span>
+                                <span></span>
+                                <span></span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                messagesContainer.appendChild(typingGroup);
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            }
+
+            hideTypingIndicator() {
+                const indicator = document.getElementById('typing-indicator');
+                if (indicator) indicator.remove();
+            }
+
+            async sendFeedback(conversationId, feedbackType, feedbackValue = null, event = null) {
+                console.log('sendFeedback called:', conversationId, feedbackType, feedbackValue);
+                
+                try {
+                    const payload = {
+                        conversation_id: conversationId,
+                        feedback_type: feedbackType,
+                        feedback_value: feedbackValue
+                    };
+                    
+                    console.log('Sending feedback payload:', payload);
+                    
+                    const response = await fetch('/feedback', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    console.log('Feedback response status:', response.status);
+                    
+                    const data = await response.json();
+                    console.log('Feedback response data:', data);
+                    
+                    if (data.success) {
+                        this.showToast(data.message, 'success');
+                        this.updateStats(data.stats);
+                        
+                        // Visual feedback on button
+                        if (event) {
+                            const button = event.target.closest('.action-btn');
+                            if (button) {
+                                button.classList.add('clicked');
+                                setTimeout(() => button.classList.remove('clicked'), 300);
+                            }
+                        }
+                    } else {
+                        this.showToast(data.error || 'Failed to submit feedback', 'error');
+                    }
+                } catch (error) {
+                    console.error('Feedback error:', error);
+                    this.showToast('Failed to submit feedback: ' + error.message, 'error');
+                }
+            }
+
+            openRatingModal(conversationId) {
+                this.currentRatingConversationId = conversationId;
+                this.selectedRating = 0;
+                this.resetStars();
+                document.getElementById('rating-modal').classList.add('active');
+            }
+
+            selectRating(rating) {
+                this.selectedRating = parseInt(rating);
+                this.updateStars(this.selectedRating);
+            }
+
+            hoverRating(rating) {
+                if (this.selectedRating === 0) {
+                    this.updateStars(parseInt(rating));
+                }
+            }
+
+            resetHover() {
+                if (this.selectedRating === 0) {
+                    this.resetStars();
+                } else {
+                    this.updateStars(this.selectedRating);
+                }
+            }
+
+            updateStars(rating) {
+                document.querySelectorAll('.star').forEach((star, index) => {
+                    if (index < rating) {
+                        star.classList.add('active');
+                    } else {
+                        star.classList.remove('active');
+                    }
+                });
+            }
+
+            resetStars() {
+                document.querySelectorAll('.star').forEach(star => {
+                    star.classList.remove('active');
+                });
+            }
+
+            async submitRating() {
+                if (this.selectedRating > 0 && this.currentRatingConversationId) {
+                    await this.sendFeedback(this.currentRatingConversationId, 'rating', this.selectedRating);
+                    this.closeRatingModal();
+                }
+            }
+
+            closeRatingModal() {
+                document.getElementById('rating-modal').classList.remove('active');
+                this.currentRatingConversationId = null;
+                this.selectedRating = 0;
+                this.resetStars();
+            }
+
+            updateStats(stats) {
+                const episodesEl = document.getElementById('episodes-count');
+                const rewardEl = document.getElementById('avg-reward');
+                const statesEl = document.getElementById('states-count');
+                const explorationEl = document.getElementById('exploration-rate');
+                const progressEl = document.getElementById('exploration-progress');
+
+                if (episodesEl) episodesEl.textContent = stats.episodes || 0;
+                if (rewardEl) rewardEl.textContent = (stats.avg_reward || 0).toFixed(3);
+                if (statesEl) statesEl.textContent = stats.states || 0;
+                
+                const explorationRate = stats.epsilon || 0;
+                if (explorationEl) explorationEl.textContent = explorationRate.toFixed(3);
+                if (progressEl) progressEl.style.width = `${explorationRate * 1000}%`;
+            }
+
+            updateMessageCount() {
+                const messageCountEl = document.getElementById('message-count');
+                if (messageCountEl) {
+                    messageCountEl.textContent = `${this.messageCount} messages`;
+                }
+            }
+
+            showToast(message, type = 'success') {
+                const toast = document.createElement('div');
+                toast.className = `toast toast-${type}`;
+                toast.innerHTML = `
+                    <i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-circle'}"></i>
+                    <span>${message}</span>
+                `;
+                
+                document.getElementById('toast-container').appendChild(toast);
+                
+                setTimeout(() => toast.classList.add('show'), 100);
+                setTimeout(() => {
+                    toast.classList.remove('show');
+                    setTimeout(() => toast.remove(), 300);
+                }, 3000);
+            }
+
+            askSampleQuestion(question) {
+                const input = document.getElementById('user-input');
+                input.value = question;
+                input.focus();
+            }
+
+            async resetSession() {
+                try {
+                    const response = await fetch('/reset_session', { method: 'POST' });
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        document.getElementById('chat-messages').innerHTML = `
+                            <div class="message-group bot-group">
+                                <div class="avatar bot-avatar">
+                                    <i class="fas fa-robot"></i>
+                                </div>
+                                <div class="message-content">
+                                    <div class="message-bubble bot-bubble">
+                                        <div class="message-text">
+                                            Hello! I'm ready for a new conversation. How can I help you today?
+                                        </div>
+                                        <div class="message-time">Just now</div>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                        this.messageCount = 0;
+                        this.updateMessageCount();
+                        this.showToast('New session started!', 'success');
+                    }
+                } catch (error) {
+                    this.showToast('Failed to reset session', 'error');
+                }
+            }
+
+            async showDetailedStats() {
+                try {
+                    const response = await fetch('/stats');
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        this.displayDetailedStats(data.learning_stats);
+                    }
+                } catch (error) {
+                    this.showToast('Failed to load statistics', 'error');
+                }
+            }
+
+            displayDetailedStats(stats) {
+                const modal = document.createElement('div');
+                modal.className = 'modal active';
+                modal.innerHTML = `
+                    <div class="modal-backdrop"></div>
+                    <div class="modal-content large">
+                        <div class="modal-header">
+                            <h3><i class="fas fa-chart-line"></i> Detailed Analytics</h3>
+                            <button class="modal-close" onclick="this.closest('.modal').remove()">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="stats-grid">
+                                <div class="stat-panel">
+                                    <h4><i class="fas fa-brain"></i> Learning Performance</h4>
+                                    <div class="stat-row">
+                                        <span>Total Episodes:</span>
+                                        <strong>${stats.q_learning.episodes}</strong>
+                                    </div>
+                                    <div class="stat-row">
+                                        <span>Knowledge States:</span>
+                                        <strong>${stats.q_learning.states}</strong>
+                                    </div>
+                                    <div class="stat-row">
+                                        <span>Average Reward:</span>
+                                        <strong>${stats.q_learning.avg_reward.toFixed(3)}</strong>
+                                    </div>
+                                    <div class="stat-row">
+                                        <span>Exploration Rate:</span>
+                                        <strong>${stats.q_learning.epsilon.toFixed(3)}</strong>
+                                    </div>
+                                </div>
+                                <div class="stat-panel">
+                                    <h4><i class="fas fa-thumbs-up"></i> User Feedback</h4>
+                                    <div class="stat-row">
+                                        <span>Total Feedback:</span>
+                                        <strong>${stats.feedback_analysis.total_feedback}</strong>
+                                    </div>
+                                    <div class="stat-row">
+                                        <span>Average Rating:</span>
+                                        <strong>${stats.feedback_analysis.average_reward.toFixed(3)}</strong>
+                                    </div>
+                                    <div class="stat-row">
+                                        <span>Trend:</span>
+                                        <strong class="trend-${stats.feedback_analysis.trend}">${stats.feedback_analysis.trend.replace('_', ' ')}</strong>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(modal);
+            }
+        }
+
+        // User menu functions
+        function toggleUserMenu() {
+            const dropdown = document.getElementById('userDropdown');
+            dropdown.classList.toggle('show');
+        }
+
+        function showProfile() {
+            // Implement profile modal
+            aiAssistant.showToast('Profile feature coming soon!', 'info');
+        }
+
+        function showSettings() {
+            // Implement settings modal
+            aiAssistant.showToast('Settings feature coming soon!', 'info');
+        }
+
+        async function logout() {
+            try {
+                const response = await fetch('/api/logout', { method: 'POST' });
+                const data = await response.json();
+                
+                if (data.success) {
+                    window.location.href = '/login';
+                } else {
+                    aiAssistant.showToast('Logout failed', 'error');
+                }
+            } catch (error) {
+                aiAssistant.showToast('Logout failed', 'error');
+            }
+        }
+
+        function showProfile() {
+            aiAssistant.showToast('Profile feature coming soon!', 'info');
+        }
+
+        // Close user menu when clicking outside
+        document.addEventListener('click', function(event) {
+            const userMenu = document.querySelector('.user-menu');
+            const dropdown = document.getElementById('userDropdown');
+            
+            if (!userMenu.contains(event.target)) {
+                dropdown.classList.remove('show');
+            }
+        });
+
+        // Initialize the AI Assistant
+        const aiAssistant = new AIAssistant();
+    </script>
+</body>
+</html>
