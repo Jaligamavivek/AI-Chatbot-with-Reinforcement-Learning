@@ -190,4 +190,7 @@ if __name__ == '__main__':
     print("Press Ctrl+C to stop the server")
     
     # Run the Flask app
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    # Use environment variable for port (Glitch compatibility)
+    import os
+    port = int(os.environ.get('PORT', 5000))
+    app.run(debug=True, host='0.0.0.0', port=port)
