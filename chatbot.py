@@ -11,6 +11,7 @@ from nlp_processor import NLPProcessor
 from rl_agent import QLearningAgent
 from feedback_handler import FeedbackHandler
 from database import DatabaseManager
+from gemini_ai import GeminiAI
 
 class IntelligentChatbot:
     def __init__(self, db_path: str = "data/conversations.db"):
@@ -19,6 +20,7 @@ class IntelligentChatbot:
         self.rl_agent = QLearningAgent()
         self.feedback_handler = FeedbackHandler()
         self.database = DatabaseManager(db_path)
+        self.gemini_ai = GeminiAI()
         
         # Load existing Q-table if available
         self.rl_agent.load_q_table(self.database)
@@ -61,11 +63,18 @@ class IntelligentChatbot:
         context = self.nlp_processor.extract_context(conversation_history)
         state = self.nlp_processor.get_state_representation(user_message, context, intent)
         
-        # Get candidate responses
-        candidate_responses = self.nlp_processor.get_response_candidates(intent, user_message)
+        # Try to get response from Gemini AI first
+        selected_response = None
+        if self.gemini_ai.is_available():
+            selected_response = self.gemini_ai.get_response(user_message, context)
         
-        # RL Agent selects best response
-        selected_response = self.rl_agent.select_action(state, candidate_responses)
+        # Fallback to traditional NLP if Gemini is unavailable
+        if not selected_response:
+            # Get candidate responses
+            candidate_responses = self.nlp_processor.get_response_candidates(intent, user_message)
+            
+            # RL Agent selects best response
+            selected_response = self.rl_agent.select_action(state, candidate_responses)
         
         # Save conversation to database
         conversation_id = self.database.save_conversation(
@@ -106,7 +115,8 @@ class IntelligentChatbot:
             'metadata': {
                 'message_count': self.active_sessions[session_id]['message_count'],
                 'implicit_reward': implicit_reward,
-                'q_stats': self.rl_agent.get_q_table_stats()
+                'q_stats': self.rl_agent.get_q_table_stats(),
+                'ai_powered': self.gemini_ai.is_available()
             }
         }
     
