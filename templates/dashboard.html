@@ -105,6 +105,10 @@
         <div class="chat-input-section">
             <div class="input-container">
                 <div class="input-wrapper">
+                    <button id="upload-button" class="upload-btn" title="Upload File">
+                        <i class="fas fa-plus"></i>
+                    </button>
+                    <input type="file" id="file-input" accept=".pdf,.txt,.doc,.docx,.png,.jpg,.jpeg,.gif" style="display: none;">
                     <input type="text" id="user-input" placeholder="Message AI Assistant..." maxlength="500" autocomplete="off">
                     <button id="voice-button" class="voice-btn" title="Speech to Text">
                         <i class="fas fa-microphone"></i>
@@ -113,6 +117,7 @@
                         <i class="fas fa-paper-plane"></i>
                     </button>
                 </div>
+                <div id="file-preview" class="file-preview" style="display: none;"></div>
             </div>
         </div>
     </div>
@@ -156,6 +161,7 @@
                 this.currentConversationId = null;
                 this.currentRatingConversationId = null;
                 this.currentSessionId = null;
+                this.uploadedFile = null;
                 this.selectedRating = 0;
                 this.messageCount = 0;
                 this.isListening = false;
@@ -240,6 +246,12 @@
                         this.sendMessage();
                     }
                 });
+
+                // File upload
+                document.getElementById('upload-button').addEventListener('click', () => {
+                    document.getElementById('file-input').click();
+                });
+                document.getElementById('file-input').addEventListener('change', (e) => this.handleFileUpload(e));
 
                 // Voice input
                 const voiceBtn = document.getElementById('voice-button');
@@ -678,6 +690,64 @@
                     window.location.href = '/download_chat';
                     this.showToast('Downloading current chat...', 'success');
                 }
+            }
+
+            handleFileUpload(event) {
+                const file = event.target.files[0];
+                if (!file) return;
+
+                const maxSize = 10 * 1024 * 1024; // 10MB
+                if (file.size > maxSize) {
+                    this.showToast('File too large! Maximum size is 10MB', 'error');
+                    return;
+                }
+
+                const filePreview = document.getElementById('file-preview');
+                const fileType = file.type;
+                const fileName = file.name;
+
+                // Show file preview
+                filePreview.style.display = 'block';
+                
+                if (fileType.startsWith('image/')) {
+                    // Image preview
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        filePreview.innerHTML = `
+                            <div class="file-item">
+                                <img src="${e.target.result}" alt="${fileName}" style="max-width: 100px; max-height: 100px;">
+                                <span>${fileName}</span>
+                                <button onclick="assistant.removeFile()" class="remove-file-btn">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                        `;
+                    };
+                    reader.readAsDataURL(file);
+                } else {
+                    // Other file types
+                    const icon = fileType.includes('pdf') ? 'fa-file-pdf' : 
+                                fileType.includes('text') ? 'fa-file-alt' : 'fa-file';
+                    filePreview.innerHTML = `
+                        <div class="file-item">
+                            <i class="fas ${icon}" style="font-size: 2rem;"></i>
+                            <span>${fileName}</span>
+                            <button onclick="assistant.removeFile()" class="remove-file-btn">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    `;
+                }
+
+                this.uploadedFile = file;
+                this.showToast(`File "${fileName}" ready to send`, 'success');
+            }
+
+            removeFile() {
+                document.getElementById('file-preview').style.display = 'none';
+                document.getElementById('file-input').value = '';
+                this.uploadedFile = null;
+                this.showToast('File removed', 'info');
             }
 
             async showDetailedStats() {
