@@ -685,8 +685,8 @@
                         
                         // Display all messages from this session
                         data.history.forEach(turn => {
-                            this.displayMessage(turn.user_message, 'user');
-                            this.displayMessage(turn.bot_response, 'bot', turn.intent);
+                            this.addMessage(turn.user_message, 'user');
+                            this.addMessage(turn.bot_response, 'bot');
                         });
                         
                         // Update message count
