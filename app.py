@@ -204,6 +204,45 @@ def chat_history():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/all_sessions')
+def all_sessions():
+    """Get all chat sessions with their first messages."""
+    try:
+        import sqlite3
+        conn = sqlite3.connect('data/conversations.db')
+        cursor = conn.cursor()
+        
+        # Get all unique sessions with their first message
+        cursor.execute('''
+            SELECT session_id, 
+                   MIN(timestamp) as first_message_time,
+                   (SELECT user_message FROM conversations c2 
+                    WHERE c2.session_id = c1.session_id 
+                    ORDER BY timestamp ASC LIMIT 1) as first_message
+            FROM conversations c1
+            GROUP BY session_id
+            ORDER BY first_message_time DESC
+            LIMIT 50
+        ''')
+        
+        sessions = []
+        for row in cursor.fetchall():
+            sessions.append({
+                'session_id': row[0],
+                'timestamp': row[1],
+                'preview': row[2][:50] + '...' if row[2] and len(row[2]) > 50 else row[2]
+            })
+        
+        conn.close()
+        
+        return jsonify({
+            'success': True,
+            'sessions': sessions
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/download_chat')
 def download_chat():
     """Download chat history as text file."""

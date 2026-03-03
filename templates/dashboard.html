@@ -166,6 +166,7 @@
                 this.initializeSpeechRecognition();
                 this.initializeEventListeners();
                 this.updateCharCount();
+                this.loadChatSessions();
             }
 
             initializeSpeechRecognition() {
@@ -633,6 +634,40 @@
             downloadChat() {
                 window.location.href = '/download_chat';
                 this.showToast('Downloading chat history...', 'success');
+            }
+
+            async loadChatSessions() {
+                try {
+                    const response = await fetch('/all_sessions');
+                    const data = await response.json();
+                    
+                    if (data.success && data.sessions.length > 0) {
+                        const historyContainer = document.getElementById('chat-history');
+                        let html = '<div class="history-section"><div class="history-label">Recent Chats</div>';
+                        
+                        data.sessions.forEach((session, index) => {
+                            const isActive = index === 0; // First one is current
+                            html += `
+                                <div class="history-item ${isActive ? 'active' : ''}" onclick="assistant.loadSession('${session.session_id}')">
+                                    <i class="fas fa-message"></i>
+                                    <span>${session.preview || 'New Conversation'}</span>
+                                </div>
+                            `;
+                        });
+                        
+                        html += '</div>';
+                        historyContainer.innerHTML = html;
+                    }
+                } catch (error) {
+                    console.error('Failed to load sessions:', error);
+                }
+            }
+
+            async loadSession(sessionId) {
+                this.showToast('Loading session...', 'info');
+                // This would require backend support to switch sessions
+                // For now, just show a message
+                this.showToast('Session switching coming soon!', 'info');
             }
 
             async showDetailedStats() {
