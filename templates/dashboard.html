@@ -648,7 +648,7 @@
                         data.sessions.forEach((session, index) => {
                             const isActive = index === 0; // First one is current
                             html += `
-                                <div class="history-item ${isActive ? 'active' : ''}" onclick="assistant.loadSession('${session.session_id}')">
+                                <div class="history-item ${isActive ? 'active' : ''}" data-session-id="${session.session_id}">
                                     <i class="fas fa-message"></i>
                                     <span>${session.preview || 'New Conversation'}</span>
                                 </div>
@@ -657,6 +657,14 @@
                         
                         html += '</div>';
                         historyContainer.innerHTML = html;
+                        
+                        // Add click event listeners to all history items
+                        document.querySelectorAll('.history-item').forEach(item => {
+                            item.addEventListener('click', (e) => {
+                                const sessionId = e.currentTarget.getAttribute('data-session-id');
+                                this.loadSession(sessionId);
+                            });
+                        });
                     }
                 } catch (error) {
                     console.error('Failed to load sessions:', error);
@@ -685,15 +693,17 @@
                         this.messageCount = data.history.length;
                         this.updateMessageCount();
                         
-                        // Show download button for this session
+                        // Store current session ID for download
                         this.currentSessionId = sessionId;
                         this.showToast(`Loaded ${data.count} messages`, 'success');
                         
                         // Update active state in sidebar
                         document.querySelectorAll('.history-item').forEach(item => {
                             item.classList.remove('active');
+                            if (item.getAttribute('data-session-id') === sessionId) {
+                                item.classList.add('active');
+                            }
                         });
-                        event.target.closest('.history-item').classList.add('active');
                     }
                 } catch (error) {
                     this.showToast('Failed to load session', 'error');
