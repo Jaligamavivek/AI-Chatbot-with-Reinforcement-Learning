@@ -159,6 +159,7 @@
             constructor() {
                 this.currentConversationId = null;
                 this.currentRatingConversationId = null;
+                this.currentSessionId = null;
                 this.selectedRating = 0;
                 this.messageCount = 0;
                 this.isListening = false;
@@ -632,8 +633,7 @@
             }
 
             downloadChat() {
-                window.location.href = '/download_chat';
-                this.showToast('Downloading chat history...', 'success');
+                this.downloadCurrentSession();
             }
 
             async loadChatSessions() {
@@ -664,10 +664,52 @@
             }
 
             async loadSession(sessionId) {
-                this.showToast('Loading session...', 'info');
-                // This would require backend support to switch sessions
-                // For now, just show a message
-                this.showToast('Session switching coming soon!', 'info');
+                try {
+                    this.showToast('Loading conversation...', 'info');
+                    
+                    const response = await fetch(`/load_session/${sessionId}`);
+                    const data = await response.json();
+                    
+                    if (data.success && data.history.length > 0) {
+                        // Clear current messages
+                        const chatMessages = document.getElementById('chat-messages');
+                        chatMessages.innerHTML = '';
+                        
+                        // Display all messages from this session
+                        data.history.forEach(turn => {
+                            this.displayMessage(turn.user_message, 'user');
+                            this.displayMessage(turn.bot_response, 'bot', turn.intent);
+                        });
+                        
+                        // Update message count
+                        this.messageCount = data.history.length;
+                        this.updateMessageCount();
+                        
+                        // Show download button for this session
+                        this.currentSessionId = sessionId;
+                        this.showToast(`Loaded ${data.count} messages`, 'success');
+                        
+                        // Update active state in sidebar
+                        document.querySelectorAll('.history-item').forEach(item => {
+                            item.classList.remove('active');
+                        });
+                        event.target.closest('.history-item').classList.add('active');
+                    }
+                } catch (error) {
+                    this.showToast('Failed to load session', 'error');
+                    console.error(error);
+                }
+            }
+
+            downloadCurrentSession() {
+                if (this.currentSessionId) {
+                    window.location.href = `/download_session/${this.currentSessionId}`;
+                    this.showToast('Downloading chat...', 'success');
+                } else {
+                    // Fallback to current session
+                    window.location.href = '/download_chat';
+                    this.showToast('Downloading current chat...', 'success');
+                }
             }
 
             async showDetailedStats() {

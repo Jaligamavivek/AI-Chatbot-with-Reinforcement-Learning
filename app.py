@@ -243,6 +243,56 @@ def all_sessions():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/load_session/<session_id>')
+def load_session(session_id):
+    """Load a specific session's conversation history."""
+    try:
+        history = chatbot.database.get_conversation_history(session_id, limit=1000)
+        
+        return jsonify({
+            'success': True,
+            'session_id': session_id,
+            'history': history,
+            'count': len(history)
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/download_session/<session_id>')
+def download_session(session_id):
+    """Download a specific session's chat history."""
+    try:
+        history = chatbot.database.get_conversation_history(session_id, limit=1000)
+        
+        # Create text content
+        content = "AI Chatbot Conversation History\n"
+        content += "=" * 50 + "\n"
+        content += f"Session ID: {session_id}\n"
+        content += f"Downloaded: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
+        content += f"Total Messages: {len(history)}\n"
+        content += "=" * 50 + "\n\n"
+        
+        for turn in history:
+            content += f"[{turn.get('timestamp', 'N/A')}]\n"
+            content += f"You: {turn.get('user_message', '')}\n"
+            content += f"Bot: {turn.get('bot_response', '')}\n"
+            content += f"Intent: {turn.get('intent', 'unknown')}\n"
+            content += "-" * 50 + "\n\n"
+        
+        # Create response with file download
+        from flask import Response
+        return Response(
+            content,
+            mimetype='text/plain',
+            headers={
+                'Content-Disposition': f'attachment; filename=chat_{session_id[:8]}.txt'
+            }
+        )
+        
+    except Exception as e:
+        return f"Error: {str(e)}", 500
+
 @app.route('/download_chat')
 def download_chat():
     """Download chat history as text file."""
