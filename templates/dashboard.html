@@ -49,10 +49,6 @@
                         <i class="fas fa-refresh"></i>
                         New Session
                     </button>
-                    <button id="view-history" class="btn btn-outline">
-                        <i class="fas fa-history"></i>
-                        History
-                    </button>
                     <button id="download-chat" class="btn btn-outline">
                         <i class="fas fa-download"></i>
                         Download
@@ -258,7 +254,6 @@
                 document.getElementById('reset-session').addEventListener('click', () => this.resetSession());
                 document.getElementById('show-stats').addEventListener('click', () => this.showDetailedStats());
                 document.getElementById('new-chat-btn').addEventListener('click', () => this.resetSession());
-                document.getElementById('view-history').addEventListener('click', () => this.viewHistory());
                 document.getElementById('download-chat').addEventListener('click', () => this.downloadChat());
 
                 // Rating modal
@@ -592,43 +587,6 @@
                     }
                 } catch (error) {
                     this.showToast('Failed to reset session', 'error');
-                }
-            }
-
-            async viewHistory() {
-                try {
-                    const response = await fetch('/chat_history');
-                    const data = await response.json();
-                    
-                    if (data.success && data.history.length > 0) {
-                        let historyHTML = '<div class="history-modal-content">';
-                        historyHTML += '<h2><i class="fas fa-history"></i> Chat History</h2>';
-                        historyHTML += `<p>Total messages: ${data.count}</p>`;
-                        historyHTML += '<div class="history-list">';
-                        
-                        data.history.forEach(turn => {
-                            historyHTML += `
-                                <div class="history-item-detail">
-                                    <div class="history-timestamp">${turn.timestamp || 'N/A'}</div>
-                                    <div class="history-user-msg"><strong>You:</strong> ${turn.user_message}</div>
-                                    <div class="history-bot-msg"><strong>Bot:</strong> ${turn.bot_response}</div>
-                                    <div class="history-intent"><em>Intent: ${turn.intent || 'unknown'}</em></div>
-                                </div>
-                            `;
-                        });
-                        
-                        historyHTML += '</div></div>';
-                        
-                        // Show in a modal or alert
-                        const modal = document.createElement('div');
-                        modal.className = 'history-modal';
-                        modal.innerHTML = historyHTML + '<button onclick="this.parentElement.remove()" class="btn btn-primary">Close</button>';
-                        document.body.appendChild(modal);
-                    } else {
-                        this.showToast('No chat history available', 'info');
-                    }
-                } catch (error) {
-                    this.showToast('Failed to load history', 'error');
                 }
             }
 
