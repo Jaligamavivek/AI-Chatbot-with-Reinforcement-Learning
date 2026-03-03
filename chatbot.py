@@ -40,13 +40,14 @@ class IntelligentChatbot:
         }
         return session_id
     
-    def process_message(self, session_id: str, user_message: str) -> Dict:
+    def process_message(self, session_id: str, user_message: str, file_content: str = None) -> Dict:
         """
         Process user message and generate response.
         
         Args:
             session_id: Session identifier
             user_message: User's input message
+            file_content: Optional file content from uploaded files
             
         Returns:
             Dictionary containing bot response and metadata
@@ -66,7 +67,7 @@ class IntelligentChatbot:
         # Try to get response from Gemini AI first
         selected_response = None
         if self.gemini_ai.is_available():
-            selected_response = self.gemini_ai.get_response(user_message, context)
+            selected_response = self.gemini_ai.get_response(user_message, context, file_content)
         
         # Fallback to traditional NLP if Gemini is unavailable
         if not selected_response:

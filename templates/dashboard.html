@@ -287,17 +287,29 @@
                 const input = document.getElementById('user-input');
                 const message = input.value.trim();
                 
-                if (!message) return;
+                if (!message && !this.uploadedFile) return;
 
                 // Disable input while processing
                 input.disabled = true;
                 document.getElementById('send-button').disabled = true;
                 document.getElementById('voice-button').disabled = true;
 
+                // Extract file content if file is uploaded
+                let fileContent = '';
+                if (this.uploadedFile) {
+                    this.showToast('Processing file...', 'info');
+                    fileContent = await this.extractFileContent(this.uploadedFile);
+                }
+
                 // Add user message to chat
-                this.addMessage(message, 'user');
+                const displayMessage = this.uploadedFile ? 
+                    `${message}\n[Attached: ${this.uploadedFile.name}]` : message;
+                this.addMessage(displayMessage, 'user');
                 input.value = '';
                 this.updateCharCount();
+
+                // Clear file
+                this.removeFile();
 
                 // Show typing indicator
                 this.showTypingIndicator();
@@ -306,7 +318,10 @@
                     const response = await fetch('/chat', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ message: message })
+                        body: JSON.stringify({ 
+                            message: message || 'Please analyze this file',
+                            file_content: fileContent
+                        })
                     });
 
                     const data = await response.json();
@@ -330,6 +345,37 @@
                     document.getElementById('voice-button').disabled = false;
                     input.focus();
                 }
+            }
+
+            async extractFileContent(file) {
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    
+                    reader.onload = async (e) => {
+                        const content = e.target.result;
+                        
+                        if (file.type === 'application/pdf') {
+                            // For PDF, send base64 and let backend handle it
+                            resolve(`[PDF File: ${file.name}]\nNote: PDF processing requires backend support. File size: ${(file.size / 1024).toFixed(2)}KB`);
+                        } else if (file.type.startsWith('text/')) {
+                            // Text file - use content directly
+                            resolve(content);
+                        } else if (file.type.startsWith('image/')) {
+                            // Image - describe it
+                            resolve(`[Image File: ${file.name}]\nImage type: ${file.type}\nSize: ${(file.size / 1024).toFixed(2)}KB`);
+                        } else {
+                            resolve(`[File: ${file.name}]\nType: ${file.type}\nSize: ${(file.size / 1024).toFixed(2)}KB`);
+                        }
+                    };
+                    
+                    reader.onerror = () => reject(new Error('Failed to read file'));
+                    
+                    if (file.type.startsWith('text/')) {
+                        reader.readAsText(file);
+                    } else {
+                        reader.readAsDataURL(file);
+                    }
+                });
             }
 
             addMessage(content, sender, conversationId = null, metadata = null) {

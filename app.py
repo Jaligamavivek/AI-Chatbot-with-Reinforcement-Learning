@@ -44,6 +44,7 @@ def chat():
     try:
         data = request.get_json()
         user_message = data.get('message', '').strip()
+        file_content = data.get('file_content', '')
         
         if not user_message:
             return jsonify({'error': 'Empty message'}), 400
@@ -54,8 +55,8 @@ def chat():
         
         session_id = session['chatbot_session_id']
         
-        # Process message
-        response_data = chatbot.process_message(session_id, user_message)
+        # Process message with file content if provided
+        response_data = chatbot.process_message(session_id, user_message, file_content)
         
         return jsonify({
             'success': True,
