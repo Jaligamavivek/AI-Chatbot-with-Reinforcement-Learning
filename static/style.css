@@ -1259,3 +1259,75 @@ ser Menu Styles */
     background: var(--border-color);
     margin: 0.5rem 0;
 }
+/* Chat H
+istory Modal */
+.history-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+    padding: 20px;
+}
+
+.history-modal-content {
+    background: white;
+    border-radius: 12px;
+    padding: 30px;
+    max-width: 800px;
+    max-height: 80vh;
+    overflow-y: auto;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+}
+
+.history-modal-content h2 {
+    margin-bottom: 20px;
+    color: #2563eb;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.history-list {
+    margin: 20px 0;
+}
+
+.history-item-detail {
+    background: #f8fafc;
+    border-left: 4px solid #2563eb;
+    padding: 15px;
+    margin-bottom: 15px;
+    border-radius: 8px;
+}
+
+.history-timestamp {
+    font-size: 0.85em;
+    color: #64748b;
+    margin-bottom: 8px;
+}
+
+.history-user-msg {
+    margin: 8px 0;
+    color: #1e293b;
+}
+
+.history-bot-msg {
+    margin: 8px 0;
+    color: #475569;
+}
+
+.history-intent {
+    font-size: 0.9em;
+    color: #94a3b8;
+    margin-top: 8px;
+}
+
+.history-modal button {
+    margin-top: 20px;
+    width: 100%;
+}
